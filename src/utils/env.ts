@@ -1,0 +1,7 @@
+export const DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:VHtUXGvID5vN9Io7@db.ogqxtmqwcgmkumyonpnl.supabase.co:5432/postgres"
+export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "72033908136-ujs6qequpvi4bjjfrh4ql2vst6qra0oj.apps.googleusercontent.com"
+export const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "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"
+export const  FACEBOOK_CLIENT_ID = process.env.FACEBOOK_CLIENT_ID || "123456789012345"
+export const  FACEBOOK_CLIENT_SECRET = process.env.FACEBOOK_CLIENT_SECRET || "your_facebook_client_secret"
+export const NEXTAUTH_URL = process.env.NEXTAUTH_URL || "http://localhost:3000"
+export const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || "ASmuPBskSUgwiRp8YLFB27fhrJ3UDEwnXyi2P6b51y8="

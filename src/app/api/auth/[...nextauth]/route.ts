@@ -7,16 +7,25 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import type { SessionStrategy } from "next-auth";
 
+import {
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
+  FACEBOOK_CLIENT_ID,
+  FACEBOOK_CLIENT_SECRET,
+  NEXTAUTH_SECRET
+} from "../../../../utils/env";
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
     }),
     FacebookProvider({
-      clientId: process.env.FACEBOOK_CLIENT_ID!,
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET!
+      // Acesse diretamente de process.env
+      clientId: FACEBOOK_CLIENT_ID,
+      clientSecret: FACEBOOK_CLIENT_SECRET,
     }),
     CredentialsProvider({
       name: "Credentials",
@@ -47,7 +56,12 @@ export const authOptions: NextAuthOptions = {
       }
     })
   ],
-  session: { strategy: "jwt" as SessionStrategy },
+  session: {
+    strategy: "jwt" as SessionStrategy, // Usando JWT para sessões
+    // Se você quiser usar sessões no banco de dados, descomente a linha abaixo e comente a linha acima
+    maxAge: 7 * 24 * 60 * 60, // 7 dias
+    // updateAge: 60 * 60 * 24, // Opcional: Atualiza a sessão no banco a cada 24 horas (se estivesse usando strategy: "database")
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -65,9 +79,10 @@ export const authOptions: NextAuthOptions = {
     }
   },
   pages: {
-    signIn: "/signin",
-    error: "/auth/error"
-  }
+    signIn: "/",
+    error: "/error"
+  },
+  secret: NEXTAUTH_SECRET
 };
 
 const handler = NextAuth(authOptions);
