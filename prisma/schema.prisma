@@ -5,22 +5,173 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
+
+// ===============================================
+// MODELOS DA EMPRESA E ESTRUTURA ORGANIZACIONAL
+// ===============================================
+
+model Company {
+  id               String      @id @default(cuid())
+  name             String      @unique // Nome único da empresa
+  sector           String?     // Ex: "TI", "Manufatura", "Serviços"
+  size             Int?        // Número de funcionários, para contextualização
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  // Relacionamentos
+  users            User[]      // Funcionários pertencentes a esta empresa
+  departments      Department[] // Departamentos desta empresa
+  requests         Request[]   // Solicitações pertencentes a esta empresa
+  // admin            User?       @relation("CompanyAdmin", fields: [adminId], references: [id]) // Opcional: Link para o primeiro admin da empresa
+  // adminId          String?     @unique // Opcional: Para garantir que apenas um admin seja o "dono" da empresa
+}
+
+model Department {
+  id        String    @id @default(cuid())
+  name      String
+  companyId String    // ID da empresa a qual o departamento pertence
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relacionamentos
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade) // Se a empresa for deletada, seus departamentos também
+  users     User[]    // Usuários (funcionários e atendentes) neste departamento
+  requests  Request[] @relation("DepartmentRequests") // Solicitações direcionadas a este departamento
+
+  @@unique([companyId, name]) // Garante que o nome do departamento seja único por empresa
+}
+
+// ===============================================
+// MODELOS DE USUÁRIO E AUTENTICAÇÃO
+// ===============================================
 
 model User {
-  id            String   @id @default(cuid())
+  id            String     @id @default(cuid())
   name          String?
-  email         String?  @unique
-  password      String?
-  emailVerified DateTime?
-  image         String?
-  role          Role     @default(FUNCIONARIO)
+  email         String     @unique // E-mail deve ser obrigatório para login
+  passwordHash  String?    // Senha hasheada. Opcional se o usuário só logar via OAuth.
+  emailVerified DateTime?  // Data de verificação do e-mail (usado pelo NextAuth para provedores, ou no cadastro admin)
+  image         String?    // URL da imagem de perfil
+  role          Role       @default(FUNCIONARIO) // Papel do usuário
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
+  // Relacionamentos com a estrutura organizacional
+  companyId     String?    // ID da empresa a qual o usuário pertence (Opcional, se nem todo usuário estiver vinculado a uma empresa)
+  company       Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull) // Se a empresa for deletada, o companyId do user vira null
+
+  departmentId  String?    // ID do departamento ao qual o usuário pertence (apenas para Atendentes/Funcionários)
+  department    Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull) // Se o departamento for deletado, departmentId do user vira null
+
+  // Relacionamentos do NextAuth.js (ESSENCIAIS)
   accounts      Account[]
   sessions      Session[]
+
+  // Relacionamentos com Solicitações
+  submittedRequests Request[] @relation("SubmittedRequests") // Solicitações criadas por este usuário
+  assignedRequests  Request[] @relation("AssignedRequests")  // Solicitações atribuídas a este usuário (Atendentes)
+  comments          Comment[] // Comentários feitos por este usuário
+
+  uploadedAttachments Attachment[] @relation("UploadedAttachments") // <-- Essa é a contraparte que faltava
 }
+
+// Enum para os papéis de usuário
+enum Role {
+  ADMIN       // Pode gerenciar usuários, departamentos, configurações da empresa
+  ATENDENTE   // Pode ver e gerenciar solicitações de seu departamento
+  FUNCIONARIO // Pode criar e ver suas solicitações
+}
+
+// ===============================================
+// MODELOS DE SOLICITAÇÕES E GERENCIAMENTO
+// ===============================================
+
+model Request {
+  id              String      @id @default(cuid())
+  title           String
+  description     String?
+  status          RequestStatus @default(ABERTA) // Status atual da solicitação
+  priority        RequestPriority @default(MEDIA) // Prioridade da solicitação
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relacionamentos
+  companyId       String      // A qual empresa esta solicitação pertence
+  company         Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  requesterId     String      // ID do funcionário que criou a solicitação
+  requester       User        @relation("SubmittedRequests", fields: [requesterId], references: [id])
+
+  departmentId    String?     // ID do departamento responsável pela solicitação
+  department      Department? @relation("DepartmentRequests", fields: [departmentId], references: [id], onDelete: SetNull) // Se o departamento for deletado, o departmentId da request vira null
+
+  assignedToId    String?     // ID do atendente a quem a solicitação foi atribuída (opcional)
+  assignedTo      User?       @relation("AssignedRequests", fields: [assignedToId], references: [id], onDelete: SetNull) // Se o atendente for deletado, assignedToId da request vira null
+
+  comments        Comment[]   // Comentários relacionados a esta solicitação
+  attachments     Attachment[] // Anexos relacionados a esta solicitação
+}
+
+// Enum para os status da solicitação
+enum RequestStatus {
+  ABERTA            // Recém-criada
+  EM_ANDAMENTO      // Atendente está trabalhando nela
+  AGUARDANDO_INFO   // Atendente precisa de mais informações do solicitante
+  RESOLVIDA         // Concluída
+  CANCELADA         // Cancelada pelo solicitante ou atendente
+}
+
+// Enum para a prioridade da solicitação
+enum RequestPriority {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  requestId String   // ID da solicitação à qual o comentário pertence
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  authorId  String   // ID do usuário que fez o comentário
+  author    User     @relation(fields: [authorId], references: [id])
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  filename  String
+  fileUrl   String   // URL onde o arquivo está armazenado (S3, Cloudinary, etc.)
+  mimetype  String?  // Tipo MIME do arquivo (ex: "image/png", "application/pdf")
+  size      Int?     // Tamanho do arquivo em bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamento
+  requestId String   // ID da solicitação à qual o anexo pertence
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  // Opcional: Se quiser saber quem fez o upload
+  uploaderId String?
+  uploader   User?    @relation("UploadedAttachments", fields: [uploaderId], references: [id], onDelete: SetNull)
+}
+
+// Extensão para o modelo User para uploads
+// Adicionar ao model User: uploadedAttachments Attachment[] @relation("UploadedAttachments")
+
+
+// ===============================================
+// MODELOS DO NEXTAUTH.JS (Manter como estão)
+// ===============================================
 
 model Account {
   id                String  @id @default(cuid())
@@ -36,7 +187,7 @@ model Account {
   id_token          String?
   session_state     String?
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -47,11 +198,5 @@ model Session {
   userId       String
   expires      DateTime
 
-  user User @relation(fields: [userId], references: [id])
-}
-
-enum Role {
-  FUNCIONARIO
-  ATENDENTE
-  ADMIN
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
