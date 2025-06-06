@@ -1,33 +1,27 @@
-// app/page.tsx
-"use client";
-
 import Link from 'next/link';
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 text-center p-4">
-      <h1 className="text-4xl font-bold text-gray-800 mb-8">Bem-vindo à Plataforma!</h1>
-
-      <p className="text-xl text-gray-700 mb-10">
-        Você é o administrador de uma empresa ou um funcionário?
-      </p>
-
-      <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-8">
-        <Link href="/onboarding/admin">
-          <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg shadow-lg text-lg transition duration-300 ease-in-out transform hover:scale-105">
-            Sou Administrador
-          </button>
-        </Link>
-        <Link href="/onboarding/employee">
-          <button className="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-lg shadow-lg text-lg transition duration-300 ease-in-out transform hover:scale-105">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gray-100 p-24">
+      <div className="bg-white shadow-md rounded-lg p-8 max-w-lg w-full text-center">
+        <h1 className="text-3xl font-bold text-gray-800 mb-8">
+          Bem-vindo ao Sistema de Gerenciamento de Solicitações Internas
+        </h1>
+        <div className="space-y-4">
+          <Link
+            href="/onboarding/admin/company-setup"
+            className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg text-lg transition duration-150 ease-in-out"
+          >
+            Sou Administrador de uma Empresa
+          </Link>
+          <Link
+            href="/onboarding/employee/pre-registration-info"
+            className="block w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg text-lg transition duration-150 ease-in-out"
+          >
             Sou Funcionário
-          </button>
-        </Link>
+          </Link>
+        </div>
       </div>
-
-      <div className="mt-12 text-gray-600">
-        <p>Já tem uma conta? <Link href="/auth/signin" className="text-blue-500 hover:underline">Faça login aqui.</Link></p>
-      </div>
-    </div>
+    </main>
   );
 }

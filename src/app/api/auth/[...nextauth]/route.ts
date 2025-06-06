@@ -42,8 +42,9 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email }
         });
 
+        // Se o usuário não for encontrado, ou se não tiver uma senha cadastrada (ex: usuário OAuth)
         if (!user || !user.password) {
-          throw new Error("Usuário não encontrado ou senha inválida.");
+          throw new Error("Usuário não encontrado ou login por credenciais não habilitado para esta conta.");
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.password);
@@ -52,35 +53,40 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Senha incorreta.");
         }
 
-        return user;
+        // Retornar o objeto do usuário SEM a senha
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
       }
     })
   ],
   session: {
     strategy: "jwt" as SessionStrategy, // Usando JWT para sessões
-    // Se você quiser usar sessões no banco de dados, descomente a linha abaixo e comente a linha acima
     maxAge: 7 * 24 * 60 * 60, // 7 dias
-    // updateAge: 60 * 60 * 24, // Opcional: Atualiza a sessão no banco a cada 24 horas (se estivesse usando strategy: "database")
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = user.role;
+        // Cast user to any to access custom properties not in DefaultUser
+        token.role = (user as any).role;
+        token.companyId = (user as any).companyId;
+        token.departmentId = (user as any).departmentId;
       }
       return token;
     },
     async session({ session, token }) {
-      if (token) {
+      if (token && session.user) { // Ensure session.user exists
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.companyId = token.companyId as string;
+        session.user.departmentId = token.departmentId as string | null;
       }
       return session;
     }
   },
   pages: {
-    signIn: "/",
-    error: "/error"
+    signIn: "/auth/signin", // Updated sign-in page URL
+    error: "/error" // Error page can remain or be customized
   },
   secret: NEXTAUTH_SECRET
 };
